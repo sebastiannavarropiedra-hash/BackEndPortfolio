@@ -717,3 +717,46 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql;
     
+
+    CREATE FUNCTION SP_ReactivarUsuario(
+    p_ID_Usuario integer
+) RETURNS jsonb AS $$
+BEGIN
+    IF p_ID_Usuario IS NULL OR p_ID_Usuario <= 0 THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'Debes ingresar un ID válido.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM T_Usuarios_Intergalacticos
+        WHERE ID_Usuario = p_ID_Usuario
+          AND Estado = false
+    ) THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'No se encontraron registros inactivos.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    UPDATE T_Usuarios_Intergalacticos
+    SET Estado = true
+    WHERE ID_Usuario = p_ID_Usuario;
+
+    RETURN jsonb_build_object(
+        'msj_tipo', 'success',
+        'msj_texto', 'Usuario reactivado correctamente.',
+        'datos', jsonb_build_array()
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'msj_tipo', 'error',
+        'msj_texto', sqlerrm,
+        'datos', jsonb_build_array()
+    );
+END;
+$$ LANGUAGE plpgsql;
