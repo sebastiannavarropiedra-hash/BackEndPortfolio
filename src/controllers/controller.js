@@ -1,14 +1,18 @@
 // Controller module for user-related database operations.
 // This file defines route handlers that call stored procedures
-// in the SQL Server database and return standardized JSON responses.
-import { getConnection, sql } from "../models/connection.js";
+// in the PostgreSQL database and return standardized JSON responses.
+import pool from "../models/connection.js";
 
 // Basic test endpoint that verifies database connectivity.
 // It executes a simple query and returns the result.
 export const getData = async (req, res) => {
-    const pool = await getConnection();
-    const result = await pool.request().query("SELECT 1 AS test");
-    res.json(result.recordset);
+    try {
+        const result = await pool.query("SELECT 1 AS test");
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
 };
 
 // ------------------------------------------------------------
@@ -23,19 +27,14 @@ export const crearUsuario = async (request, result) => {
             ID_Perfil
         } = request.body;
 
-        // Get a database connection pool.
-        const pool = await getConnection();
+        // Call the stored procedure with parameterized query.
+        const respuesta = await pool.query(
+            "SELECT * FROM SP_InsertarUsuario($1, $2, $3)",
+            [Nombre_Usuario, Credencial_Espacial, ID_Perfil]
+        );
 
-        // Call the stored procedure with typed input parameters.
-        const respuesta = await pool
-            .request()
-            .input("Nombre_Usuario", sql.NVarChar, Nombre_Usuario)
-            .input("Credencial_Espacial", sql.NVarChar, Credencial_Espacial)
-            .input("ID_Perfil", sql.Int, ID_Perfil)
-            .execute("SP_InsertarUsuario");
-
-        // The stored procedure returns a message in recordsets[0][0].
-        const mensaje = respuesta.recordsets[0][0];
+        // Assuming the function returns a message in the first row.
+        const mensaje = respuesta.rows[0];
 
         return result.json({
             resultado_tipo: mensaje.msj_tipo,
@@ -59,19 +58,17 @@ export const crearUsuario = async (request, result) => {
 // ------------------------------------------------------------
 export const getUsuarios = async (request, result) => {
     try {
-        const pool = await getConnection();
-
-        // Execute the read stored procedure without input parameters.
-        const respuesta = await pool
-            .request()
-            .execute("SP_LeerUsuarios");
+        // Execute the read stored procedure.
+        const respuesta = await pool.query("SELECT * FROM SP_LeerUsuarios()");
 
         const descripcion = "Endpoint que permite consultar todos los usuarios";
 
+        // Assuming the function returns data in rows, and message separately if needed.
+        // Adjust based on actual function return.
         return result.json({
-            resultado_tipo: respuesta.recordsets[1][0].msj_tipo,
-            respuesta_detalle: respuesta.recordsets[1][0].msj_texto,
-            datos: respuesta.recordsets[0] || [],
+            resultado_tipo: "success", // Adjust if function returns type
+            respuesta_detalle: "Usuarios obtenidos exitosamente",
+            datos: respuesta.rows || [],
             descripcion: descripcion
         });
     } catch (error) {
@@ -91,19 +88,18 @@ export const getUsuarios = async (request, result) => {
 export const getUsuarioById = async (request, result) => {
     try {
         const { id } = request.params;
-        const pool = await getConnection();
 
-        const respuesta = await pool
-            .request()
-            .input("ID_Usuario", sql.Int, id)
-            .execute("SP_LeerUsuariosPorID");
+        const respuesta = await pool.query(
+            "SELECT * FROM SP_LeerUsuariosPorID($1)",
+            [id]
+        );
 
         const descripcion = "Endpoint que permite consultar usuarios por ID";
 
         return result.json({
-            resultado_tipo: respuesta.recordsets[1][0].msj_tipo,
-            respuesta_detalle: respuesta.recordsets[1][0].msj_texto,
-            datos: respuesta.recordsets[0] || [],
+            resultado_tipo: "success", // Adjust based on function
+            respuesta_detalle: "Usuario obtenido exitosamente",
+            datos: respuesta.rows || [],
             descripcion: descripcion
         });
     } catch (error) {
@@ -132,17 +128,12 @@ export const updateUsuario = async (request, result) => {
             ID_Perfil
         } = request.body;
 
-        const pool = await getConnection();
+        const respuesta = await pool.query(
+            "SELECT * FROM SP_ActualizarUsuarios($1, $2, $3, $4)",
+            [ID_Usuario, Nombre_Usuario, Credencial_Espacial, ID_Perfil]
+        );
 
-        const respuesta = await pool
-            .request()
-            .input("ID_Usuario", sql.Int, ID_Usuario)
-            .input("Nombre_Usuario", sql.NVarChar, Nombre_Usuario)
-            .input("Credencial_Espacial", sql.NVarChar, Credencial_Espacial)
-            .input("ID_Perfil", sql.Int, ID_Perfil)
-            .execute("SP_ActualizarUsuarios");
-
-        const mensaje = respuesta.recordsets[0][0];
+        const mensaje = respuesta.rows[0];
 
         return result.json({
             resultado_tipo: mensaje.msj_tipo,
@@ -169,14 +160,13 @@ export const updateUsuario = async (request, result) => {
 export const deleteLogico = async (request, result) => {
     try {
         const { id } = request.params;
-        const pool = await getConnection();
 
-        const respuesta = await pool
-            .request()
-            .input("ID_Usuario", sql.Int, id)
-            .execute("SP_EliminarUsuario");
+        const respuesta = await pool.query(
+            "SELECT * FROM SP_EliminarUsuario($1)",
+            [id]
+        );
 
-        const mensaje = respuesta.recordsets[0][0];
+        const mensaje = respuesta.rows[0];
 
         return result.json({
             resultado_tipo: mensaje.msj_tipo,
@@ -203,14 +193,13 @@ export const deleteLogico = async (request, result) => {
 export const deleteFisico = async (request, result) => {
     try {
         const { id } = request.params;
-        const pool = await getConnection();
 
-        const respuesta = await pool
-            .request()
-            .input("ID_Usuario", sql.Int, id)
-            .execute("SP_EliminarUsuarioFisico");
+        const respuesta = await pool.query(
+            "SELECT * FROM SP_EliminarUsuarioFisico($1)",
+            [id]
+        );
 
-        const mensaje = respuesta.recordsets[0][0];
+        const mensaje = respuesta.rows[0];
 
         return result.json({
             resultado_tipo: mensaje.msj_tipo,
