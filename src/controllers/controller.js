@@ -177,3 +177,30 @@ export const deleteFisico = async (request, result) => {
         });
     }
 };
+
+// ------------------------------------------------------------
+// Reactivate user (function: SP_ReactivarUsuario)
+// ------------------------------------------------------------
+export const reactivarUsuario = async (request, result) => {
+    try {
+        const { id } = request.params;
+
+        const respuesta = await executeJsonFunction(
+            "SELECT SP_ReactivarUsuario($1) AS respuesta",
+            [id]
+        );
+
+        return result.json(respuesta);
+    } catch (error) {
+        console.log(request.params);
+        console.log(error);
+
+        return result.status(500).json({
+            resultado_tipo: "error",
+            respuesta_detalle: error.message,
+            datos: [],
+            descripcion: "Error interno del servidor"
+        });
+    }
+};
+

@@ -9,6 +9,7 @@ import {
     getUsuarioById,
     deleteLogico,
     deleteFisico,
+    reactivarUsuario,
 } from "../controllers/controller.js";
 
 const router = Router();
@@ -44,6 +45,11 @@ router.delete("/usuarios/logico/:id", deleteLogico);
 // This removes the user row from the database permanently.
 // Example: DELETE http://localhost:3002/api/usuarios/fisico/1
 router.delete("/usuarios/fisico/:id", deleteFisico);
+
+// Reactivate a user.
+// This marks an inactive user as active again.
+// Example: PUT http://localhost:3002/api/usuarios/reactivar/1
+router.put("/usuarios/reactivar/:id", reactivarUsuario);
 
 // Export the configured router so it can be mounted in the main app.
 export default router;
