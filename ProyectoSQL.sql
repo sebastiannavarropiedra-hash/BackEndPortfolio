@@ -444,4 +444,276 @@ GO
 
 -- Example execution of the physical delete stored procedure.
 EXEC SP_EliminarUsuarioFisico 1;
+
+-- ------------------------------------------------------------
+-- PostgreSQL function equivalents for Supabase
+-- These functions return JSON with message and data.
+-- ------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS SP_InsertarUsuario(text, text, integer);
+CREATE FUNCTION SP_InsertarUsuario(
+    p_Nombre_Usuario text,
+    p_Credencial_Espacial text,
+    p_ID_Perfil integer
+) RETURNS jsonb AS $$
+DECLARE
+    salida jsonb;
+BEGIN
+    IF p_Nombre_Usuario IS NULL OR length(trim(p_Nombre_Usuario)) = 0 OR
+       p_Credencial_Espacial IS NULL OR length(trim(p_Credencial_Espacial)) = 0 OR
+       p_ID_Perfil IS NULL THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'Debes ingresar todos los datos obligatorios.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    INSERT INTO T_Usuarios_Intergalacticos(
+        Nombre_Usuario,
+        Credencial_Espacial,
+        ID_Perfil,
+        Estado
+    ) VALUES (
+        p_Nombre_Usuario,
+        p_Credencial_Espacial,
+        p_ID_Perfil,
+        true
+    );
+
+    RETURN jsonb_build_object(
+        'msj_tipo', 'success',
+        'msj_texto', 'Exito al realizar la acción.',
+        'datos', jsonb_build_array()
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'msj_tipo', 'error',
+        'msj_texto', sqlerrm,
+        'datos', jsonb_build_array()
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS SP_LeerUsuarios();
+CREATE FUNCTION SP_LeerUsuarios() RETURNS jsonb AS $$
+DECLARE
+    datos jsonb;
+BEGIN
+    SELECT jsonb_agg(jsonb_build_object(
+        'ID_Usuario', ID_Usuario,
+        'Nombre_Usuario', Nombre_Usuario,
+        'Credencial_Espacial', Credencial_Espacial,
+        'ID_Perfil', ID_Perfil,
+        'Estado', Estado
+    )) INTO datos
+    FROM T_Usuarios_Intergalacticos
+    WHERE Estado = true;
+
+    IF datos IS NULL THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'No se encontraron registros.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    RETURN jsonb_build_object(
+        'msj_tipo', 'success',
+        'msj_texto', 'Exito al realizar la acción.',
+        'datos', datos
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'msj_tipo', 'error',
+        'msj_texto', sqlerrm,
+        'datos', jsonb_build_array()
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS SP_LeerUsuariosPorID(integer);
+CREATE FUNCTION SP_LeerUsuariosPorID(
+    p_ID_Usuario integer
+) RETURNS jsonb AS $$
+DECLARE
+    datos jsonb;
+BEGIN
+    IF p_ID_Usuario IS NULL OR p_ID_Usuario <= 0 THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'Debes ingresar un ID válido.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    SELECT jsonb_agg(jsonb_build_object(
+        'ID_Usuario', ID_Usuario,
+        'Nombre_Usuario', Nombre_Usuario,
+        'Credencial_Espacial', Credencial_Espacial,
+        'ID_Perfil', ID_Perfil,
+        'Estado', Estado
+    )) INTO datos
+    FROM T_Usuarios_Intergalacticos
+    WHERE ID_Usuario = p_ID_Usuario;
+
+    IF datos IS NULL THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'No se encontraron registros.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    RETURN jsonb_build_object(
+        'msj_tipo', 'success',
+        'msj_texto', 'Usuario encontrado.',
+        'datos', datos
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'msj_tipo', 'error',
+        'msj_texto', sqlerrm,
+        'datos', jsonb_build_array()
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS SP_ActualizarUsuarios(integer, text, text, integer);
+CREATE FUNCTION SP_ActualizarUsuarios(
+    p_ID_Usuario integer,
+    p_Nombre_Usuario text,
+    p_Credencial_Espacial text,
+    p_ID_Perfil integer
+) RETURNS jsonb AS $$
+BEGIN
+    IF p_ID_Usuario IS NULL OR p_ID_Usuario <= 0 OR
+       p_Nombre_Usuario IS NULL OR length(trim(p_Nombre_Usuario)) = 0 OR
+       p_Credencial_Espacial IS NULL OR length(trim(p_Credencial_Espacial)) = 0 OR
+       p_ID_Perfil IS NULL OR p_ID_Perfil <= 0 THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'Debes ingresar todos los datos obligatorios.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM T_Usuarios_Intergalacticos
+        WHERE ID_Usuario = p_ID_Usuario
+    ) THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'No se encontraron registros.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    UPDATE T_Usuarios_Intergalacticos
+    SET
+        Nombre_Usuario = p_Nombre_Usuario,
+        Credencial_Espacial = p_Credencial_Espacial,
+        ID_Perfil = p_ID_Perfil
+    WHERE ID_Usuario = p_ID_Usuario;
+
+    RETURN jsonb_build_object(
+        'msj_tipo', 'success',
+        'msj_texto', 'Exito al realizar la acción.',
+        'datos', jsonb_build_array()
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'msj_tipo', 'error',
+        'msj_texto', sqlerrm,
+        'datos', jsonb_build_array()
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS SP_EliminarUsuario(integer);
+CREATE FUNCTION SP_EliminarUsuario(
+    p_ID_Usuario integer
+) RETURNS jsonb AS $$
+BEGIN
+    IF p_ID_Usuario IS NULL OR p_ID_Usuario <= 0 THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'Debes ingresar un ID válido.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM T_Usuarios_Intergalacticos
+        WHERE ID_Usuario = p_ID_Usuario
+          AND Estado = true
+    ) THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'No se encontraron registros.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    UPDATE T_Usuarios_Intergalacticos
+    SET Estado = false
+    WHERE ID_Usuario = p_ID_Usuario;
+
+    RETURN jsonb_build_object(
+        'msj_tipo', 'success',
+        'msj_texto', 'Usuario eliminado correctamente.',
+        'datos', jsonb_build_array()
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'msj_tipo', 'error',
+        'msj_texto', sqlerrm,
+        'datos', jsonb_build_array()
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS SP_EliminarUsuarioFisico(integer);
+CREATE FUNCTION SP_EliminarUsuarioFisico(
+    p_ID_Usuario integer
+) RETURNS jsonb AS $$
+BEGIN
+    IF p_ID_Usuario IS NULL OR p_ID_Usuario <= 0 THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'Debes ingresar un ID válido.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM T_Usuarios_Intergalacticos
+        WHERE ID_Usuario = p_ID_Usuario
+    ) THEN
+        RETURN jsonb_build_object(
+            'msj_tipo', 'warning',
+            'msj_texto', 'No se encontraron registros.',
+            'datos', jsonb_build_array()
+        );
+    END IF;
+
+    DELETE FROM T_Usuarios_Intergalacticos
+    WHERE ID_Usuario = p_ID_Usuario;
+
+    RETURN jsonb_build_object(
+        'msj_tipo', 'success',
+        'msj_texto', 'Usuario eliminado físicamente.',
+        'datos', jsonb_build_array()
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'msj_tipo', 'error',
+        'msj_texto', sqlerrm,
+        'datos', jsonb_build_array()
+    );
+END;
+$$ LANGUAGE plpgsql;
     
