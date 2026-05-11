@@ -1,9 +1,14 @@
-// Import the Express application instance configured in app.js.
+// Import Express app
 import app from "./app.js";
 
-// Start the server on the configured port.
-// The port value is set in app.js and retrieved with app.get("port").
-app.listen(app.get("port"));
+// Render provides the PORT automatically
+const PORT = process.env.PORT || 3000;
 
-// Log a simple startup message to the console.
-console.log('\n API REST - Escuchando en el puerto #', app.get("port"), '\n');
+// Start server
+app.listen(PORT, () => {
+
+    console.log(`
+    API REST running on port ${PORT}
+    `);
+
+});
