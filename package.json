@@ -1,0 +1,20 @@
+{
+  "name": "proyecto2",
+  "version": "1.0.0",
+  "description": "ProyectoSQL",
+  "license": "ISC",
+  "author": "Sebas",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --watch ./src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "morgan": "^1.10.1",
+    "mssql": "^12.3.1"
+  }
+}
