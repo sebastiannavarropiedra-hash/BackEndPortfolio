@@ -1,39 +1,27 @@
-// Import the official Microsoft SQL Server client for Node.js.
-import sql from "mssql";
+import pkg from "pg";
+const { Pool } = pkg;
 
-// Load database configuration values from the shared config file.
-import config from "../config.js";
+// Load database configuration from environment variables or config.js.
+// For Supabase, use the full connection string (e.g., postgresql://user:password@host:port/database).
+// Store this securely in an environment variable to avoid hardcoding.
+const connectionString = process.env.SUPABASE_CONNECTION_STRING || config.supabaseConnectionString;
 
-// Database connection settings used by the MSSQL client.
-// These values are sourced from config.js so they can be changed
-// in one place and not hard-coded in the data access code.
-export const dbSettings = {
-    user: config.dbUser,
-    password: config.dbPassword,
-    server: config.dbServer,
-    database: config.dbDatabase,
-    options: {
-        // Encrypt the connection to SQL Server. This is required for
-        // Azure SQL and recommended for secure local/remote connections.
-        encrypt: true,
-        // Allow trusting a self-signed certificate in development.
-        trustServerCertificate: true,
-    },
-};
-
-// Creates and returns a connection pool to the database.
+// Creates and returns a connection pool to the Supabase database.
 // This is an async function because connection setup may take time.
 export const getConnection = async () => {
     try {
-        const pool = await sql.connect(dbSettings);
+        const pool = new Pool({
+            connectionString,
+            ssl: { rejectUnauthorized: false }, // Required for Supabase; adjust if needed for local dev
+        });
         return pool;
     } catch (error) {
         // Log the error and re-throw it so calling code can handle it.
-        console.error(error);
+        console.error("Error connecting to Supabase:", error);
         throw error;
     }
 };
 
-// Export the mssql module itself so other modules can use helpers such as
-// sql.Request, sql.VarChar, sql.Int, etc. without importing mssql again.
-export { sql };
+// Export the pg module itself so other modules can use helpers such as
+// Pool, Client, etc. without importing pg again.
+export { Pool };
