@@ -25,7 +25,7 @@ import {
     getUsuarioById,
     deleteLogico,
     deleteFisico,
-    reactivarUsuario,
+    reactivarUsuario, sendEmail
 } from "../controllers/controller.js";
 
 /**
@@ -318,14 +318,22 @@ router.delete("/usuarios/fisico/:id", deleteFisico);
 router.put("/usuarios/reactivar/:id", reactivarUsuario);
 
 // ============================================================
-// EXPORT ROUTER
+// EMAIL TEST
 // ============================================================
 /**
- * Export the configured router
- * This router is imported in app.js and mounted at /api
- * All routes defined above will be prefixed with /api
+ * POST /api/sendemail
  * 
- * Usage in app.js:
- *   app.use("/api", routes);
- */
+ * Purpose: Test email sending
+ * 
+ * Database Function: None
+ * 
+ * Response (on success):
+ * {
+ *   "msj_tipo": "success",
+ *   "msj_texto": "Email enviado correctamente.",
+*/
+
+router.post("/sendemail", sendEmail);
+
+// Export the router to be used in app.js
 export default router;
