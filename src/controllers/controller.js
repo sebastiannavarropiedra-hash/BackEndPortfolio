@@ -9,7 +9,7 @@ import { Resend } from 'resend';
 const executeJsonFunction = async (query, params = []) => {
     const respuesta = await pool.query(query, params);
     return respuesta.rows[0]?.respuesta || respuesta.rows[0] || null;
-    
+
 
 };
 
@@ -226,7 +226,7 @@ export const sendEmail = async (request, result) => {
 
 
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+        const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 
@@ -235,7 +235,16 @@ const resend = new Resend(process.env.RESEND_API_KEY);
             to: 'sebastian.navarropiedra@ucreativa.com',
             replyTo: email,
             subject: `Nuevo mensaje de contacto de ${name}`,
-            html: `...`,
+            html: `
+             <div style="font-family: Arial, sans-serif; line-height:1.4; color:#111;">
+            <h2 style="color:#333;">Nuevo mensaje de contacto</h2>
+            <p><strong>Nombre:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Mensaje:</strong>${message.replace(/\n/g, "<br>")}</p>
+      </div>
+            
+            
+            `,
             text: `...`,
         });
 
