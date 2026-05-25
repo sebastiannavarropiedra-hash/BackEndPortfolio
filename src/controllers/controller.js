@@ -4,10 +4,13 @@
 import pool from "../models/connection.js";
 import { Resend } from 'resend';
 
+
 // Utility function to execute a function that returns a JSON value from the database.
 const executeJsonFunction = async (query, params = []) => {
     const respuesta = await pool.query(query, params);
     return respuesta.rows[0]?.respuesta || respuesta.rows[0] || null;
+    
+
 };
 
 // Basic test endpoint that verifies database connectivity.
@@ -223,8 +226,8 @@ export const sendEmail = async (request, result) => {
 
 
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-        const resend = new Resend(process.env.RESEND_API_KEY);
 
 
         const emailResponse = await resend.emails.send({
@@ -256,7 +259,6 @@ export const sendEmail = async (request, result) => {
     } catch (error) {
         console.log(request.params);
         console.log(error);
-        console.log("RESEND_API_KEY:", process.env.RESEND_API_KEY);
 
         return result.status(500).json({
             resultado_tipo: "error",
