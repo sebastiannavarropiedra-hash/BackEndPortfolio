@@ -229,7 +229,7 @@ export const sendEmail = async (request, result) => {
 
         const emailResponse = await resend.emails.send({
             from: 'onboarding@resend.dev',
-            to: 'snpnavarro@outlook.com',
+            to: 'sebastian.navarropiedra@ucreativa.com',
             replyTo: email,
             subject: `Nuevo mensaje de contacto de ${name}`,
             html: `...`,
@@ -242,6 +242,8 @@ export const sendEmail = async (request, result) => {
                 respuesta_detalle: emailResponse.error.message,
                 datos: [],
                 descripcion: "Error al enviar el email"
+
+
             });
         }
         return result.json({
@@ -254,6 +256,7 @@ export const sendEmail = async (request, result) => {
     } catch (error) {
         console.log(request.params);
         console.log(error);
+        console.log("RESEND_API_KEY:", process.env.RESEND_API_KEY);
 
         return result.status(500).json({
             resultado_tipo: "error",
