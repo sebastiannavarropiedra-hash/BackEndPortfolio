@@ -449,15 +449,159 @@ EXEC SP_EliminarUsuarioFisico 1;
 -- PostgreSQL function equivalents for Supabase
 -- These functions return JSON with message and data.
 -- ------------------------------------------------------------
+-- ============================================================================
+--  PROYECTO 1 · Base de datos intergaláctica (PostgreSQL)
+--  Script organizado: esquemas → tablas → restricciones/índices →
+--  datos iniciales → vista → funciones CRUD → consultas de ejemplo
+-- ============================================================================
 
+-- ----------------------------------------------------------------------------
+-- 0. CREACIÓN DE LA BASE DE DATOS (sesión separada)
+--    CREATE DATABASE no puede ejecutarse dentro del mismo script/sesión que
+--    el resto de instrucciones, y "GO" es sintaxis de SQL Server (no existe
+--    en PostgreSQL). Ejecuta esta línea UNA sola vez, antes que el resto:
+--      psql -U <tu_usuario> -d postgres -c "CREATE DATABASE Proyecto1;"
+--    Después conéctate a la base Proyecto1 y ejecuta todo lo demás.
+-- ----------------------------------------------------------------------------
+-- CREATE DATABASE Proyecto1;
+
+-- ----------------------------------------------------------------------------
+-- 1. ESQUEMAS Y RUTA DE BÚSQUEDA
+--    Se crean los esquemas referenciados antes de fijar el search_path;
+--    si tu instalación usa el esquema por defecto "public", elimina este
+--    bloque y no hagas SET search_path.
+-- ----------------------------------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS proyecto1;
+CREATE SCHEMA IF NOT EXISTS private;
+
+SET search_path TO proyecto1, private;
+
+-- ----------------------------------------------------------------------------
+-- 2. TABLAS
+-- ----------------------------------------------------------------------------
+
+-- Planetas: nombre, galaxia y población.
+CREATE TABLE T_Planetas
+(
+    ID_Planeta INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Nombre     VARCHAR(30) NOT NULL,
+    Galaxia    VARCHAR(30) NOT NULL,
+    Poblacion  VARCHAR(30) NOT NULL   -- observación: es un valor numérico; considera BIGINT
+);
+
+-- Bibliotecarios asociados a un planeta.
+CREATE TABLE T_Bibliotecarios
+(
+    ID_Bibliotecario INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Nombre           VARCHAR(30) NOT NULL,
+    Especie          VARCHAR(30) NOT NULL,
+    Rango            VARCHAR(30) NOT NULL,
+    ID_Planeta       INT,
+    CONSTRAINT FK_Bibliotecarios_Planeta
+        FOREIGN KEY (ID_Planeta) REFERENCES T_Planetas(ID_Planeta)
+);
+
+-- Libros estelares.
+CREATE TABLE T_Libros_Estelares
+(
+    ID_Libro          INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Titulo            VARCHAR(30) NOT NULL,
+    Autor             VARCHAR(30) NOT NULL,
+    Idioma_Universal  VARCHAR(30) NOT NULL
+);
+
+-- Perfiles de seguridad referenciados por los usuarios.
+CREATE TABLE T_Perfiles_Seguridad
+(
+    ID_Perfil                 INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Nivel_Acceso              VARCHAR(30) NOT NULL,
+    Restricciones_Biometricas VARCHAR(30) NOT NULL
+);
+
+-- Usuarios intergalácticos: credenciales, estado y perfil.
+CREATE TABLE T_Usuarios_Intergalacticos
+(
+    ID_Usuario          INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Nombre_Usuario      VARCHAR(30) NOT NULL,
+    Credencial_Espacial VARCHAR(30) NOT NULL,
+    Estado              BOOLEAN NOT NULL,
+    ID_Perfil           INT,
+    CONSTRAINT FK_Usuarios_Perfil
+        FOREIGN KEY (ID_Perfil) REFERENCES T_Perfiles_Seguridad(ID_Perfil)
+);
+
+-- ----------------------------------------------------------------------------
+-- 3. RESTRICCIONES ÚNICAS E ÍNDICES
+--    (Agrupadas aquí, antes de los datos iniciales. La restricción duplicada
+--     de T_Planetas que aparecía dos veces en el original se ha reducido a una.)
+-- ----------------------------------------------------------------------------
+ALTER TABLE T_Planetas
+    ADD CONSTRAINT UQ_Planetas_Nombre_Galaxia UNIQUE (Nombre, Galaxia);
+
+ALTER TABLE T_Usuarios_Intergalacticos
+    ADD CONSTRAINT UQ_Usuarios_Nombre_Usuario UNIQUE (Nombre_Usuario);
+
+ALTER TABLE T_Usuarios_Intergalacticos
+    ADD CONSTRAINT UQ_Usuarios_Credencial_Espacial UNIQUE (Credencial_Espacial);
+
+-- Índice en clave foránea para mejor rendimiento.
+CREATE INDEX IX_Bibliotecarios_ID_Planeta ON T_Bibliotecarios(ID_Planeta);
+
+-- Índice para consultas frecuentes sobre estado activo/inactivo.
+CREATE INDEX IX_Usuarios_Estado ON T_Usuarios_Intergalacticos(Estado);
+
+-- Índices pendientes: las tablas T_Ejemplares y T_Prestamos NO están definidas
+-- en este script, por lo que estos índices se dejan comentados (ver lista de
+-- dependencias al final). Si esas tablas viven en otro script, descoméntalos.
+-- CREATE INDEX IX_Ejemplares_ID_Libro   ON T_Ejemplares(ID_Libro);
+-- CREATE INDEX IX_Prestamos_ID_Usuario  ON T_Prestamos(ID_Usuario);
+-- CREATE INDEX IX_Prestamos_ID_Ejemplar ON T_Prestamos(ID_Ejemplar);
+
+-- ----------------------------------------------------------------------------
+-- 4. DATOS INICIALES
+--    Los perfiles se insertan primero para respetar la FK de los usuarios
+--    (ID_Perfil 1, 2 y 3 existen). Todos los valores caben en VARCHAR(30).
+-- ----------------------------------------------------------------------------
+INSERT INTO T_Perfiles_Seguridad (Nivel_Acceso, Restricciones_Biometricas)
+VALUES
+    ('Básico', 'Ninguna'),
+    ('Intermedio', 'Huella Digital'),
+    ('Avanzado', 'Escaneo Retinal');
+
+INSERT INTO T_Usuarios_Intergalacticos
+    (Nombre_Usuario, Credencial_Espacial, ID_Perfil, Estado)
+VALUES
+    ('John Doe',        'CREDENCIAL_ESPACIAL_1', 1, TRUE),
+    ('Jane Smith',      'CREDENCIAL_ESPACIAL_2', 2, TRUE),
+    ('Michael Johnson', 'CREDENCIAL_ESPACIAL_3', 3, TRUE),
+    ('Emily Davis',     'CREDENCIAL_ESPACIAL_4', 2, TRUE),
+    ('David Wilson',    'CREDENCIAL_ESPACIAL_5', 2, TRUE);
+
+-- ----------------------------------------------------------------------------
+-- 5. VISTA: usuarios activos
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW V_Usuarios_Activos AS
+SELECT ID_Usuario, Nombre_Usuario, Credencial_Espacial
+FROM T_Usuarios_Intergalacticos
+WHERE Estado = TRUE;
+
+-- ----------------------------------------------------------------------------
+-- 6. FUNCIONES CRUD (API JSONB)
+--    Se conserva la versión FUNCIÓN que devuelve jsonb (la que consume el
+--    frontend). Las versiones PROCEDURE con SELECT sueltos se han eliminado:
+--    en PostgreSQL un SELECT sin destino dentro de un PROCEDURE es inválido
+--    (error 42601) y no devuelve resultados. Cada función se elimina antes
+--    de crearse para que el script sea re-ejecutable.
+-- ----------------------------------------------------------------------------
+
+-- 6.1 Insertar usuario -------------------------------------------------------
 DROP FUNCTION IF EXISTS SP_InsertarUsuario(text, text, integer);
+
 CREATE FUNCTION SP_InsertarUsuario(
     p_Nombre_Usuario text,
     p_Credencial_Espacial text,
     p_ID_Perfil integer
 ) RETURNS jsonb AS $$
-DECLARE
-    salida jsonb;
 BEGIN
     IF p_Nombre_Usuario IS NULL OR length(trim(p_Nombre_Usuario)) = 0 OR
        p_Credencial_Espacial IS NULL OR length(trim(p_Credencial_Espacial)) = 0 OR
@@ -493,9 +637,12 @@ EXCEPTION WHEN OTHERS THEN
         'datos', jsonb_build_array()
     );
 END;
+
 $$ LANGUAGE plpgsql;
 
+-- 6.2 Leer todos los usuarios activos ----------------------------------------
 DROP FUNCTION IF EXISTS SP_LeerUsuarios();
+
 CREATE FUNCTION SP_LeerUsuarios() RETURNS jsonb AS $$
 DECLARE
     datos jsonb;
@@ -508,7 +655,7 @@ BEGIN
         'Estado', Estado
     )) INTO datos
     FROM T_Usuarios_Intergalacticos
-    WHERE Estado = true;
+   ;
 
     IF datos IS NULL THEN
         RETURN jsonb_build_object(
@@ -530,9 +677,12 @@ EXCEPTION WHEN OTHERS THEN
         'datos', jsonb_build_array()
     );
 END;
+
 $$ LANGUAGE plpgsql;
 
+-- 6.3 Leer un usuario por ID ---------------------------------------------------
 DROP FUNCTION IF EXISTS SP_LeerUsuariosPorID(integer);
+
 CREATE FUNCTION SP_LeerUsuariosPorID(
     p_ID_Usuario integer
 ) RETURNS jsonb AS $$
@@ -577,8 +727,10 @@ EXCEPTION WHEN OTHERS THEN
         'datos', jsonb_build_array()
     );
 END;
+
 $$ LANGUAGE plpgsql;
 
+-- 6.4 Actualizar usuario -------------------------------------------------------
 DROP FUNCTION IF EXISTS SP_ActualizarUsuarios(integer, text, text, integer);
 CREATE FUNCTION SP_ActualizarUsuarios(
     p_ID_Usuario integer,
@@ -629,8 +781,10 @@ EXCEPTION WHEN OTHERS THEN
         'datos', jsonb_build_array()
     );
 END;
+
 $$ LANGUAGE plpgsql;
 
+-- 6.5 Borrado lógico (Estado = false) ------------------------------------------
 DROP FUNCTION IF EXISTS SP_EliminarUsuario(integer);
 CREATE FUNCTION SP_EliminarUsuario(
     p_ID_Usuario integer
@@ -673,8 +827,10 @@ EXCEPTION WHEN OTHERS THEN
         'datos', jsonb_build_array()
     );
 END;
+
 $$ LANGUAGE plpgsql;
 
+-- 6.6 Borrado físico (DELETE) ----------------------------------------------------
 DROP FUNCTION IF EXISTS SP_EliminarUsuarioFisico(integer);
 CREATE FUNCTION SP_EliminarUsuarioFisico(
     p_ID_Usuario integer
@@ -715,10 +871,12 @@ EXCEPTION WHEN OTHERS THEN
         'datos', jsonb_build_array()
     );
 END;
-$$ LANGUAGE plpgsql;
-    
 
-    CREATE FUNCTION SP_ReactivarUsuario(
+$$ LANGUAGE plpgsql;
+
+-- 6.7 Reactivar usuario (Estado = true) ------------------------------------------
+DROP FUNCTION IF EXISTS SP_ReactivarUsuario(integer);
+CREATE FUNCTION SP_ReactivarUsuario(
     p_ID_Usuario integer
 ) RETURNS jsonb AS $$
 BEGIN
@@ -759,4 +917,45 @@ EXCEPTION WHEN OTHERS THEN
         'datos', jsonb_build_array()
     );
 END;
+
 $$ LANGUAGE plpgsql;
+
+-- ----------------------------------------------------------------------------
+-- 7. CONSULTAS DE EJEMPLO
+--    Ojo: los datos sembrados ocupan los IDs 1 a 5. Las consultas que usan
+--    ID_Usuario = 7 son ejemplos y no afectarán a ninguna fila real.
+-- ----------------------------------------------------------------------------
+
+-- Todos los usuarios.
+SELECT *
+FROM T_Usuarios_Intergalacticos;
+
+-- Un usuario por ID (sin resultado si el ID 7 no existe tras el seed).
+SELECT *
+FROM T_Usuarios_Intergalacticos
+WHERE ID_Usuario = 7;
+
+-- Actualizar un usuario (ejemplo; con los datos sembrados, no coincide con nadie).
+UPDATE T_Usuarios_Intergalacticos
+SET
+    Nombre_Usuario = 'Carlos Alvarado',
+    Credencial_Espacial = 'Pase Especial',
+    ID_Perfil = 3
+WHERE ID_Usuario = 7;
+
+-- Borrado lógico (desactiva al usuario 1, 'John Doe').
+UPDATE T_Usuarios_Intergalacticos
+SET Estado = FALSE
+WHERE ID_Usuario = 1;
+
+-- Consultar la vista de usuarios activos.
+SELECT * FROM V_Usuarios_Activos;
+
+-- Ejemplos de uso de las funciones CRUD (devuelven jsonb):
+-- SELECT * FROM SP_LeerUsuarios();
+-- SELECT * FROM SP_LeerUsuariosPorID(1);
+-- SELECT * FROM SP_InsertarUsuario('Nuevo Usuario', 'CREDENCIAL_ESPACIAL_9', 2);
+-- SELECT * FROM SP_ActualizarUsuarios(6, 'Nuevo Usuario', 'CREDENCIAL_ESPACIAL_9', 2);
+-- SELECT * FROM SP_EliminarUsuario(6);
+-- SELECT * FROM SP_ReactivarUsuario(6);
+-- SELECT * FROM SP_EliminarUsuarioFisico(6);
